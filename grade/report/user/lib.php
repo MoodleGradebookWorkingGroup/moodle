@@ -24,6 +24,7 @@
 
 require_once($CFG->dirroot . '/grade/report/lib.php');
 require_once($CFG->libdir.'/tablelib.php');
+require_once($CFG->dirroot . '/grade/user_view_data_adjuster.php');
 
 //showhiddenitems values
 define("GRADE_REPORT_USER_HIDE_HIDDEN", 0);
@@ -299,9 +300,22 @@ class grade_report_user extends grade_report {
         }
     }
 
+    // 20131211 Colin. fill_table sets this prior to invoking fill_table_recursive.
+    private $adjusted_grades;
+
     function fill_table() {
         //print "<pre>";
         //print_r($this->gtree->top_element);
+
+        // 20131211 Colin. Adjusting grade_items and grade_grades for user view.
+        $data_adjuster = new grade_user_view_data_adjuster(
+                                $this->user,
+                                $this->course,
+                                $this->showtotalsifcontainhidden[$this->courseid]);
+
+        // Returns adjusted grades and adjusts gtree grademax values by reference.
+        $this->adjusted_grades = $data_adjuster->get_adjusted_grades($this->gtree);
+
         $this->fill_table_recursive($this->gtree->top_element);
         //print_r($this->tabledata);
         //print "</pre>";
@@ -340,12 +354,10 @@ class grade_report_user extends grade_report {
             $header_row = "row_{$eid}_{$this->user->id}";
             $header_cat = "cat_{$grade_object->categoryid}_{$this->user->id}";
 
-            if (! $grade_grade = grade_grade::fetch(array('itemid'=>$grade_object->id,'userid'=>$this->user->id))) {
-                $grade_grade = new grade_grade();
-                $grade_grade->userid = $this->user->id;
-                $grade_grade->itemid = $grade_object->id;
-            }
+            // 20131211 Colin. Using grades adjusted for user view.
+            $grade_grade = $this->adjusted_grades[$grade_object->id];
 
+            // 20131211 Colin. Might no longer be necessary, but will do nothing in that case anyway.
             $grade_grade->load_grade_item();
 
             /// Hidden Items
@@ -435,7 +447,9 @@ class grade_report_user extends grade_report {
                             $data['grade']['content'] = '-';
                     } else {
                         $data['grade']['class'] = $class;
-                        $gradeval = $this->blank_hidden_total($this->courseid, $grade_grade->grade_item, $gradeval);
+
+                        // 20131211 Colin.  Removed call to blank_hidden_total because we are using
+                        //                  grade data already adjusted for user view.
                         $data['grade']['content'] = grade_format_gradevalue($gradeval, $grade_grade->grade_item, true);
                     }
                     $data['grade']['headers'] = "$header_cat $header_row grade";
