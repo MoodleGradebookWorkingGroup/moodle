@@ -116,7 +116,10 @@ if (!is_null($toggle) && !empty($toggle_type)) {
 }
 
 //first make sure we have proper final grades - this must be done before constructing of the grade tree
-grade_regrade_final_grades($courseid);
+$report->sumofgradesonly();
+if (!$report->sumofgradesonly) { // only need to do this if we're not in a sum of grades only condition
+	grade_regrade_final_grades($courseid);
+}
 
 // Perform actions
 if (!empty($target) && !empty($action) && confirm_sesskey()) {
