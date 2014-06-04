@@ -1,3 +1,6 @@
 [submodule "grade/report/laegrader"]
 	path = grade/report/laegrader
 	url = /opt/local/apache2/htdocs/laegrader
+[submodule "grade/report/laeuser"]
+	path = grade/report/laeuser
+	url = /opt/local/apache2/htdocs/laeuser
