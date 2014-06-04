@@ -24,6 +24,7 @@
 
 require_once($CFG->dirroot . '/grade/report/lib.php');
 require_once($CFG->libdir.'/tablelib.php');
+require_once($CFG->dirroot . '/grade/report/laegrader/locallib.php');
 
 /**
  * Class providing an API for the grader report building and displaying.
@@ -1667,15 +1668,6 @@ class grade_report_grader extends grade_report {
      */
     public function get_students_per_page() {
         return $this->get_pref('studentsperpage');
-    }
-
-    function sumofgradesonly() {
-        global $CFG;
-        if ($CFG->sumofgradesonly == FORCE_SUM_OF_GRADES) {
-        	$this->sumofgradesonly = true;
-        } else if ($CFG->sumofgradesonly = OPTIONAL_SUM_OF_GRADES) {
-        	// iterate through all categories to see if they're all Sum of grades
-        }
     }
 }
 

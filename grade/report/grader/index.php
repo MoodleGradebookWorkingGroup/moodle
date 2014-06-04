@@ -26,6 +26,7 @@ require_once '../../../config.php';
 require_once $CFG->libdir.'/gradelib.php';
 require_once $CFG->dirroot.'/grade/lib.php';
 require_once $CFG->dirroot.'/grade/report/grader/lib.php';
+require_once $CFG->dirroot.'/grade/edit/tree/locallib.php';
 
 $courseid      = required_param('id', PARAM_INT);        // course id
 $page          = optional_param('page', 0, PARAM_INT);   // active page
@@ -102,11 +103,15 @@ if (!is_null($toggle) && !empty($toggle_type)) {
     set_user_preferences(array('grade_report_show'.$toggle_type => $toggle));
 }
 
+//Initialise the grader report object that produces the table
+//the class grade_report_grader_ajax was removed as part of MDL-21562
+$report = new grade_report_grader($courseid, $gpr, $context, $page, $sortitemid);
+
 //first make sure we have proper final grades - this must be done before constructing of the grade tree
-$report->sumofgradesonly();
-if (!$report->sumofgradesonly) { // only need to do this if we're not in a sum of grades only condition
+$report->sumofgradesonly = sumofgradesonly($courseid);
+//if (!$report->sumofgradesonly) { // only need to do this if we're not in a sum of grades only condition
 	grade_regrade_final_grades($courseid);
-}
+//}
 
 // Perform actions
 if (!empty($target) && !empty($action) && confirm_sesskey()) {
@@ -117,10 +122,6 @@ $reportname = get_string('pluginname', 'gradereport_grader');
 
 /// Print header
 print_grade_page_head($COURSE->id, 'report', 'grader', $reportname, false, $buttons);
-
-//Initialise the grader report object that produces the table
-//the class grade_report_grader_ajax was removed as part of MDL-21562
-$report = new grade_report_grader($courseid, $gpr, $context, $page, $sortitemid);
 
 // make sure separate group does not prevent view
 if ($report->currentgroup == -2) {
