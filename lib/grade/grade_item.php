@@ -50,7 +50,7 @@ class grade_item extends grade_object {
     public $required_fields = array('id', 'courseid', 'categoryid', 'itemname', 'itemtype', 'itemmodule', 'iteminstance',
                                  'itemnumber', 'iteminfo', 'idnumber', 'calculation', 'gradetype', 'grademax', 'grademin',
                                  'scaleid', 'outcomeid', 'gradepass', 'multfactor', 'plusfactor', 'aggregationcoef',
-                                 'sortorder', 'display', 'decimals', 'hidden', 'locked', 'locktime', 'needsupdate', 'timecreated',
+                                 'scaleid', 'outcomeid', 'gradepass', 'multfactor', 'plusfactor', 'aggregationcoef', 'weight', 'weightoverride', 'extracredit',
                                  'timemodified');
 
     /**
@@ -238,7 +238,7 @@ class grade_item extends grade_object {
      * If set, the whole column will be recalculated, then this flag will be switched off.
      * @var bool $needsupdate
      */
-    public $needsupdate = 1;
+    public $needsupdate = 0;
 
     /**
      * Cached dependson array
