@@ -59,7 +59,6 @@ class grade_edit_tree_local extends grade_edit_tree {
         global $USER, $OUTPUT, $COURSE, $CFG, $DB;
 
         $showtotalsifcontainhidden = grade_get_setting($COURSE->id, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
-//        $showtotalsifcontainhidden = 1;
 
         $gtree->cats = array();
         $gtree->fill_cats();
@@ -67,13 +66,16 @@ class grade_edit_tree_local extends grade_edit_tree {
        	$gtree->parents = array();
 		$gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass(); // initiate the course item
        	$gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $showtotalsifcontainhidden,array());
-//		$gtree->grades = array();
-		$sql = "SELECT id, grademax as finalgrade FROM {grade_items}
+		$sql = "SELECT id, grademax as finalgrade, grademax FROM {grade_items}
 				WHERE courseid = $COURSE->id";
 		$gtree->grades = $DB->get_records_sql($sql);
         $gtree->emptycats = array();
 
-        $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, null, true);
+        foreach($gtree->items as $item) {
+        	$cat = $item->get_item_category(); // need category settings like drop-low or keep-high
+        }
+
+        $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
 
         $this->gtree = $gtree;
         $this->moving = $moving;
@@ -393,8 +395,14 @@ class grade_edit_tree_local extends grade_edit_tree {
 
         $parent_category = $item->get_parent_category();
         $parent_category->apply_forced_settings();
-        $aggcoef = $item->get_coefstring();
+//        $aggcoef = $item->get_coefstring();
 
+        $checked = ($item->extracredit > 0) ? 'checked="checked"' : '';
+        return '<input type="hidden" name="extracredit_'.$item->id.'" value="0" />
+            <label class="accesshide" for="extracredit_'.$item->id.'">'.
+            get_string('extracreditvalue', 'grades', $item->itemname).'</label>
+            <input type="checkbox" id="extracredit_'.$item->id.'" name="extracredit_'.$item->id.'" value="1" '."$checked />\n";
+/*
         if ((($aggcoef == 'aggregationcoefweight' || $aggcoef == 'aggregationcoef') && $type == 'weight') ||
             ($aggcoef == 'aggregationcoefextraweight' && $type == 'extra')) {
             return '<label class="accesshide" for="aggregationcoef_'.$item->id.'">'.
@@ -410,6 +418,7 @@ class grade_edit_tree_local extends grade_edit_tree {
         } else {
             return '';
         }
+*/
     }
 
     //Trims trailing zeros
@@ -588,15 +597,12 @@ class grade_edit_tree_local_column_weight extends grade_edit_tree_column {
         $categorycell = clone($this->categorycell);
         $categorycell->attributes['class']  .= ' ' . $levelclass;
         if ($item->itemtype !== 'course') {
-        	if ($params['gtree']->grades[$item->id]->weight == '') {
-        		$itemcell->text = '-';
+        	if ($params['gtree']->grades[$item->id]->weight === '') {
+        		$categorycell->text = '-';
         	} else if ($params['gtree']->action === 'editweights') {
-//        		$categorycell->text = '<label class="accesshide" for="weight'.$params['gtree']->grades[$item->id]->id.'">'.get_string('editweight', 'gradereport_laegrader').'</label>
-//        				<input type="text" size="6" id="weight'.$params['gtree']->grades[$item->id]->id.'" name="weight_'.$item->id.'" value="'.
         		$categorycell->text = '<label class="accesshide" for="weight'. $item->id .'">'.get_string('editweight', 'gradereport_laegrader').'</label>
         				<input type="text" size="6" id="weight'. $item->id .'" name="weight_'.$item->id.'" value="'.
         				format_float($params['gtree']->grades[$item->id]->weight, 3).'" />';
-//        		$categorycell->text .= '<input type="hidden" size="6" id="old_weight'.$params['gtree']->grades[$item->id]->id.'" name="old_weight_'.$item->id.'" value="'.
         		$categorycell->text .= '<input type="hidden" size="6" id="old_weight'. $item->id .'" name="old_weight_'.$item->id.'" value="'.
           				format_float($params['gtree']->grades[$item->id]->weight, 3).'" />';
         	} else {
@@ -604,7 +610,6 @@ class grade_edit_tree_local_column_weight extends grade_edit_tree_column {
         	}
             if ($item->weightoverride > 0) {
                 $categorycell->text .= '<br />Overridden';
-//            	$itemcell->style .= ' background-color: #F3E4C0 ';
 	        }
         }
 

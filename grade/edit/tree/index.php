@@ -111,7 +111,6 @@ if (!is_null($category) && !is_null($aggregationtype) && confirm_sesskey()) {
     grade_regrade_final_grades($courseid);
 }
 $sumofgradesonly = sumofgradesonly($courseid);
-
 //first make sure we have proper final grades - we need it for locking changes
 // get the grading tree object
 // note: total must be first for moving to work correctly, if you want it last moving code must be rewritten!

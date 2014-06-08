@@ -496,34 +496,6 @@ class grade_report_user extends grade_report {
                     $data['lettergrade']['headers'] = "$header_cat $header_row lettergrade";
                 }
 
-                // Rank
-                if ($this->showrank) {
-                    if ($grade_grade->grade_item->needsupdate) {
-                        $data['rank']['class'] = $class.' gradingerror';
-                        $data['rank']['content'] = get_string('error');
-                        } elseif ($grade_grade->is_hidden()) {
-                            $data['rank']['class'] = $class.' hidden';
-                            $data['rank']['content'] = '-';
-                    } else if (is_null($gradeval)) {
-                        // no grade, no rank
-                        $data['rank']['class'] = $class;
-                        $data['rank']['content'] = '-';
-
-                    } else {
-                        /// find the number of users with a higher grade
-                        $sql = "SELECT COUNT(DISTINCT(userid))
-                                  FROM {grade_grades}
-                                 WHERE finalgrade > ?
-                                       AND itemid = ?
-                                       AND hidden = 0";
-                        $rank = $DB->count_records_sql($sql, array($grade_grade->finalgrade, $grade_grade->grade_item->id)) + 1;
-
-                        $data['rank']['class'] = $class;
-                        $data['rank']['content'] = "$rank/".$this->get_numusers(false); // total course users
-                    }
-                    $data['rank']['headers'] = "$header_cat $header_row rank";
-                }
-
                 // Average
                 if ($this->showaverage) {
                     $data['average']['class'] = $class;
