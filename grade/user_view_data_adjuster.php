@@ -33,7 +33,7 @@ class grade_user_view_data_adjuster {
     static public function get_adjusted_course_grade(
                                 $user,
                                 $course,
-                                $showtotalsifcontainhidden=GRADE_REPORT_SHOW_TOTAL_IF_CONTAINS_HIDDEN) 
+                                $showtotalsifcontainhidden=GRADE_REPORT_SHOW_TOTAL_IF_CONTAINS_HIDDEN)
     {
         $grades = static::get_adjusted_course_grades($user, $course, $showtotalsifcontainhidden);
 
@@ -328,7 +328,7 @@ class grade_user_view_data_adjuster {
         // aggregationcoef > 0 indicates that the grade_item is an
         // extra-credit item.
         $aggregationmethod = $grade_category->aggregation;
-        if (!$include_extracredit and $gradeitem->aggregationcoef > 0 and
+        if (!$include_extracredit and $gradeitem->extracredit > 0 and
             ($aggregationmethod == GRADE_AGGREGATE_WEIGHTED_MEAN2 or
              $aggregationmethod == GRADE_AGGREGATE_EXTRACREDIT_MEAN or
              $aggregationmethod == GRADE_AGGREGATE_SUM))
