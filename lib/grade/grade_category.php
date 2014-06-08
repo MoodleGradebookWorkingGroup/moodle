@@ -46,7 +46,7 @@ class grade_category extends grade_object {
      * @var array $required_fields
      */
     public $required_fields = array('id', 'courseid', 'parent', 'depth', 'path', 'fullname', 'aggregation',
-                                 'keephigh', 'droplow', 'aggregateonlygraded', 'aggregateoutcomes',
+                                 'keephigh', 'droplow', 'aggregateonlygraded', 'needsupdate', 'aggregateoutcomes',
                                  'aggregatesubcats', 'timecreated', 'timemodified', 'hidden');
 
     /**
@@ -768,7 +768,7 @@ class grade_category extends grade_object {
      *
      * @param array $items sub items
      */
-    private function auto_update_max($items) {
+    function auto_update_max($items) {
         if ($this->aggregation != GRADE_AGGREGATE_SUM) {
             // not needed at all
             return;
