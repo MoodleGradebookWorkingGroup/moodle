@@ -229,6 +229,7 @@ switch ($action) {
     		$record->weightoverride = 0;
     		$DB->update_record('grade_items', $record);
     	}
+      redirect($returnurl);
 
     default:
         break;
@@ -333,7 +334,6 @@ if ($data = data_submitted() and confirm_sesskey()) {
         } elseif (preg_match('/^extracredit_([0-9]+)$/', $key, $matches)) { // Sum extra credit checkbox
             $aid   = $matches[1];
             $value = clean_param($value, PARAM_BOOL);
-
             $grade_item = grade_item::fetch(array('id'=>$aid, 'courseid'=>$courseid));
 
             // disagg hack

@@ -582,12 +582,12 @@ class grade_edit_tree_local_column_weight extends grade_edit_tree_column {
         global $OUTPUT, $gtree, $COURSE;
         $label = get_string('reset');
 //        $optionsreset = array('sesskey'=>sesskey(), 'id'=>$COURSE->id, 'action'=>'reset', 'tooltip' => 'Reset weights to default');
-        $optionsreset = array('sesskey'=>sesskey(), 'id'=>$COURSE->id, 'action'=>'', 'tooltip' => 'Reset weights to default');
+        $optionsreset = array('sesskey'=>sesskey(), 'id'=>$COURSE->id, 'action'=>'reset');
         $url = new moodle_url('index.php', $optionsreset);
         $headercell = clone($this->headercell);
         $headercell->text = get_string('weightuc', 'grades') . $OUTPUT->help_icon('aggregationcoefweight', 'grades')
                 . '<br />' . $gtree->get_weight_edit_icon()
-                . '<br /' . $OUTPUT->single_button($url, $label, 'post',  $optionsreset);
+                . $OUTPUT->action_icon($url, new pix_icon('t/reload', get_string('reset')));
         return $headercell;
     }
 
