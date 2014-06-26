@@ -77,6 +77,15 @@ if (has_capability('moodle/grade:manage', $systemcontext)
 
         $strnoforce = new lang_string('noforce', 'grades');
 
+        // No aggregations
+        $options = array(NO_SUM_OF_GRADES                =>new lang_string('nosumofgrades', 'grades'),
+                         OPTIONAL_SUM_OF_GRADES          =>new lang_string('optionalsumofgrades', 'grades'),
+                         FORCE_SUM_OF_GRADES             =>new lang_string('forcesumofgrades', 'grades'));
+        $defaults['value'] = 0;
+        $defaults['forced'] = true;
+        $temp->add(new admin_setting_configselect('grade_sumofgradesonly', new lang_string('sumofgradesonly', 'grades'),
+                                                  new lang_string('sumofgradesonly_help', 'grades'), NO_SUM_OF_GRADES, $options));
+
         // Aggregation type
         $options = array(GRADE_AGGREGATE_MEAN            =>new lang_string('aggregatemean', 'grades'),
                          GRADE_AGGREGATE_WEIGHTED_MEAN   =>new lang_string('aggregateweightedmean', 'grades'),

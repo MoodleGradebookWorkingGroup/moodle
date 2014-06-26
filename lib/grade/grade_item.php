@@ -49,7 +49,7 @@ class grade_item extends grade_object {
      */
     public $required_fields = array('id', 'courseid', 'categoryid', 'itemname', 'itemtype', 'itemmodule', 'iteminstance',
                                  'itemnumber', 'iteminfo', 'idnumber', 'calculation', 'gradetype', 'grademax', 'grademin',
-                                 'scaleid', 'outcomeid', 'gradepass', 'multfactor', 'plusfactor', 'aggregationcoef',
+                                 'scaleid', 'outcomeid', 'gradepass', 'multfactor', 'plusfactor', 'aggregationcoef', 'weight', 'weightoverride', 'extracredit',
                                  'sortorder', 'display', 'decimals', 'hidden', 'locked', 'locktime', 'needsupdate', 'timecreated',
                                  'timemodified');
 
@@ -301,6 +301,7 @@ class grade_item extends grade_object {
         $scaleiddiff     = $db_item->scaleid     != $this->scaleid;
         $outcomeiddiff   = $db_item->outcomeid   != $this->outcomeid;
         $locktimediff    = $db_item->locktime    != $this->locktime;
+        $extracreditdiff    = $db_item->extracredit    != $this->extracredit;
         $grademindiff    = grade_floats_different($db_item->grademin,        $this->grademin);
         $grademaxdiff    = grade_floats_different($db_item->grademax,        $this->grademax);
         $multfactordiff  = grade_floats_different($db_item->multfactor,      $this->multfactor);
@@ -310,7 +311,7 @@ class grade_item extends grade_object {
         $needsupdatediff = !$db_item->needsupdate &&  $this->needsupdate;    // force regrading only if setting the flag first time
         $lockeddiff      = !empty($db_item->locked) && empty($this->locked); // force regrading only when unlocking
 
-        return ($calculationdiff || $categorydiff || $gradetypediff || $grademaxdiff || $grademindiff || $scaleiddiff
+        return ($calculationdiff || $categorydiff || $gradetypediff || $extracreditdiff || $grademaxdiff || $grademindiff || $scaleiddiff
              || $outcomeiddiff || $multfactordiff || $plusfactordiff || $needsupdatediff
              || $lockeddiff || $acoefdiff || $locktimediff);
     }

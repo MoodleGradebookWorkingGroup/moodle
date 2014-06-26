@@ -46,7 +46,7 @@ class grade_category extends grade_object {
      * @var array $required_fields
      */
     public $required_fields = array('id', 'courseid', 'parent', 'depth', 'path', 'fullname', 'aggregation',
-                                 'keephigh', 'droplow', 'aggregateonlygraded', 'aggregateoutcomes',
+                                 'keephigh', 'droplow', 'aggregateonlygraded', 'needsupdate', 'aggregateoutcomes',
                                  'aggregatesubcats', 'timecreated', 'timemodified', 'hidden');
 
     /**
@@ -769,11 +769,13 @@ class grade_category extends grade_object {
      * @param array $items sub items
      */
     private function auto_update_max($items) {
+        global $CFG;
         if ($this->aggregation != GRADE_AGGREGATE_SUM) {
             // not needed at all
             return;
         }
 
+        $showtotalsifcontainhidden = grade_get_setting($this->courseid, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
         if (!$items) {
 
             if ($this->grade_item->grademax != 0 or $this->grade_item->gradetype != GRADE_TYPE_VALUE) {
@@ -790,11 +792,19 @@ class grade_category extends grade_object {
 
         foreach ($items as $item) {
 
-            if ($item->aggregationcoef > 0) {
+//            if ($item->aggregationcoef > 0) {
                 // extra credit from this activity - does not affect total
+//                continue;
+//            }
+
+            if ($showtotalsifcontainhidden == GRADE_REPORT_SHOW_TOTAL_IF_CONTAINS_HIDDEN && $item->hidden == 1) {
                 continue;
             }
-
+            
+            if ($item->extracredit == 1) {
+                continue;
+            }
+            
             if ($item->gradetype == GRADE_TYPE_VALUE) {
                 $maxes[$item->id] = $item->grademax;
 
