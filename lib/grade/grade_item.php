@@ -301,6 +301,7 @@ class grade_item extends grade_object {
         $scaleiddiff     = $db_item->scaleid     != $this->scaleid;
         $outcomeiddiff   = $db_item->outcomeid   != $this->outcomeid;
         $locktimediff    = $db_item->locktime    != $this->locktime;
+        $hiddendiff    = $db_item->hidden    != $this->hidden;
         $extracreditdiff    = $db_item->extracredit    != $this->extracredit;
         $grademindiff    = grade_floats_different($db_item->grademin,        $this->grademin);
         $grademaxdiff    = grade_floats_different($db_item->grademax,        $this->grademax);
@@ -313,7 +314,7 @@ class grade_item extends grade_object {
 
         return ($calculationdiff || $categorydiff || $gradetypediff || $extracreditdiff || $grademaxdiff || $grademindiff || $scaleiddiff
              || $outcomeiddiff || $multfactordiff || $plusfactordiff || $needsupdatediff
-             || $lockeddiff || $acoefdiff || $locktimediff);
+    || $lockeddiff || $acoefdiff || $locktimediff || $hiddendiff);
     }
 
     /**

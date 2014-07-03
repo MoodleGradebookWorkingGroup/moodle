@@ -118,7 +118,7 @@ $sumofgradesonly = sumofgradesonly($courseid);
 // get the grading tree object
 // note: total must be first for moving to work correctly, if you want it last moving code must be rewritten!
 if (!$sumofgradesonly) {
-    $grade_regrade_final_grades($courseid);
+    grade_regrade_final_grades($courseid);
     $gtree = new grade_tree($courseid, false, false);
 } else {
     $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);
@@ -155,12 +155,12 @@ if ($action == 'moveselect') {
 }
 
 // disagg hack
-if ($sumofgradesonly) {
-	$grade_edit_tree = new grade_edit_tree_local($gtree, $movingeid, $gpr);
+// if ($sumofgradesonly) {
+//	$grade_edit_tree = new grade_edit_tree_local($gtree, $movingeid, $gpr);
 // disagg hack end
-} else {
+//} else {
 	$grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
-}
+//}
 
 switch ($action) {
     case 'delete':
@@ -221,14 +221,6 @@ switch ($action) {
         }
         break;
 
-    case 'reset':
-    	$records = $DB->get_records('grade_items', array('courseid' => $courseid, 'weightoverride' => 1));
-    	foreach ($records as $record) {
-    		$record->weight = 0;
-    		$record->weightoverride = 0;
-    		$DB->update_record('grade_items', $record);
-    	}
-
     default:
         break;
 }
@@ -252,6 +244,16 @@ if ($current_view != '') {
 // $grade_edit_tree has already been constructed.
 //Ideally we could do the updates through $grade_edit_tree to avoid recreating it
 $recreatetree = false;
+
+if ($action == 'reset') {
+    	$records = $DB->get_records('grade_items', array('courseid' => $courseid, 'weightoverride' => 1));
+    	foreach ($records as $record) {
+    		$record->weight = 0;
+    		$record->weightoverride = 0;
+    		$DB->update_record('grade_items', $record);
+    	}
+    $recreatetree = true;
+}
 
 if ($data = data_submitted() and confirm_sesskey()) {
     // Perform bulk actions first
@@ -377,12 +379,12 @@ if ($recreatetree) {
 		$gtree = new grade_tree($courseid, false, false);
 	}
 	$gtree->action = isset($action) ? $action : '';
-	if ($sumofgradesonly) {
-		$grade_edit_tree = new grade_edit_tree_local($gtree, $movingeid, $gpr);
+//	if ($sumofgradesonly) {
+//		$grade_edit_tree = new grade_edit_tree_local($gtree, $movingeid, $gpr);
 	// disagg hack end
-	} else {
+//	} else {
 		$grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
-	}
+//	}
 	// disagg hack end
 }
 
