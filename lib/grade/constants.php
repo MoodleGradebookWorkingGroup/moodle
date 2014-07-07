@@ -253,3 +253,18 @@ define('GRADE_NAVMETHOD_TABS', 1);
  * GRADE_NAVMETHOD_TABS - Display both a drop down and tabs to allow navigation within the gradebook
  */
 define('GRADE_NAVMETHOD_COMBO', 2);
+
+/*
+ * NO_SUM_OF_GRADES - no special processing for Sum of grades categories
+ */
+define('NO_SUM_OF_GRADES', 0);
+
+/*
+ * OPTIONAL_SUM_OF_GRADES - special processing for Sum of grades categories if all categories for course are Sum of grades
+ */
+define('OPTIONAL_SUM_OF_GRADES', 1);
+
+/*
+ * FORCE_SUM_OF_GRADES - special processing for Sum of grades categories, only Sum of grades available
+ */
+define('FORCE_SUM_OF_GRADES', 2);

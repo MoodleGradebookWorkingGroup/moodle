@@ -47,7 +47,7 @@ class grade_category extends grade_object {
      */
     public $required_fields = array('id', 'courseid', 'parent', 'depth', 'path', 'fullname', 'aggregation',
                                  'keephigh', 'droplow', 'aggregateonlygraded', 'aggregateoutcomes',
-                                 'aggregatesubcats', 'timecreated', 'timemodified', 'hidden');
+                                 'aggregatesubcats', 'timecreated', 'timemodified', 'hidden', 'needsupdate');
 
     /**
      * The course this category belongs to.
@@ -769,11 +769,14 @@ class grade_category extends grade_object {
      * @param array $items sub items
      */
     private function auto_update_max($items) {
+        global $CFG;
+
         if ($this->aggregation != GRADE_AGGREGATE_SUM) {
             // not needed at all
             return;
         }
 
+        $showtotalsifcontainhidden = grade_get_setting($this->courseid, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
         if (!$items) {
 
             if ($this->grade_item->grademax != 0 or $this->grade_item->gradetype != GRADE_TYPE_VALUE) {
@@ -790,8 +793,13 @@ class grade_category extends grade_object {
 
         foreach ($items as $item) {
 
-            if ($item->aggregationcoef > 0) {
+            if ($item->extracredit == 1) {
                 // extra credit from this activity - does not affect total
+                continue;
+            }
+
+            if (($showtotalsifcontainhidden == GRADE_REPORT_SHOW_TOTAL_IF_CONTAINS_HIDDEN) && $item->hidden == 1) {
+                // totals for this course should not contain hidden items and this item is hidden
                 continue;
             }
 

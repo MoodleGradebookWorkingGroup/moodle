@@ -109,9 +109,19 @@ if (!is_null($category) && !is_null($aggregationtype) && confirm_sesskey()) {
 //first make sure we have proper final grades - we need it for locking changes
 grade_regrade_final_grades($courseid);
 
+$sumofgradesonly = sumofgradesonly($courseid);  //TODO: comes from laegrader
+
 // get the grading tree object
 // note: total must be first for moving to work correctly, if you want it last moving code must be rewritten!
-$gtree = new grade_tree($courseid, false, false);
+$gtree = null;
+
+if (!$sumofgradesonly) {
+    $gtree = new grade_tree($courseid, false, false);
+} else {
+    $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);  //TODO: rename and move
+}
+
+$gtree->action = isset($action) ? $action : ''; //TODO: why?
 
 if (empty($eid)) {
     $element = null;
@@ -280,13 +290,31 @@ if ($data = data_submitted() and confirm_sesskey()) {
 
             $recreatetree = true;
 
+        // Grade weight overrides
+        } elseif (preg_match('/^(weight)_([0-9]+)$/', $key, $matches)) {
+            $param = $matches[1];
+            $aid   = $matches[2];
+
+            $value = unformat_float($value);
+            $value = clean_param($value, PARAM_FLOAT);
+
+            $oldkey = 'old_' . $key;
+            if ($value != $data->$oldkey) {
+                $grade_item = grade_item::fetch(array('id'=>$aid, 'courseid'=>$courseid));
+                $grade_item->$param = $value;
+                $grade_item->weightoverride = 1;
+                $grade_item->update();
+                grade_regrade_final_grades($courseid); //TODO: this seems really expensive to do each time
+                $recreatetree = true;
+            }
+
         // Grade item checkbox inputs
         } elseif (preg_match('/^extracredit_([0-9]+)$/', $key, $matches)) { // Sum extra credit checkbox
             $aid   = $matches[1];
             $value = clean_param($value, PARAM_BOOL);
 
             $grade_item = grade_item::fetch(array('id'=>$aid, 'courseid'=>$courseid));
-            $grade_item->aggregationcoef = $value;
+            $grade_item->extracredit = $value;
 
             $grade_item->update();
             grade_regrade_final_grades($courseid);
@@ -321,7 +349,18 @@ echo '<input type="hidden" name="sesskey" value="'.sesskey().'" />';
 
 //did we update something in the db and thus invalidate $grade_edit_tree?
 if ($recreatetree) {
-    $grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
+    unset($gtree);
+    //TODO: compensate for incorporating grade_tree_local_helper into grade_tree
+    if ($sumofgradesonly) {
+        $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);
+    }
+    else {
+        $gtree = new grade_tree($courseid, false, false);
+    }
+
+    $gtree->action = isset($action) ? $action : '';
+
+    $gtree_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
 }
 
 echo html_writer::table($grade_edit_tree->table);
