@@ -730,7 +730,7 @@ class grade_edit_tree_column_extracredit extends grade_edit_tree_column {
 
     public function get_item_cell($item, $params) {
         if (empty($params['element'])) {
-            throw new Exception('Array key (element) missing from 2nd param of grade_edit_tree_column_weightorextracredit::get_item_cell($item, $params)');
+            throw new Exception('Array key (element) missing from 2nd param of grade_edit_tree_column_extracredit::get_item_cell($item, $params)');
         }
 
         $itemcell = clone($this->itemcell);
@@ -808,7 +808,7 @@ class grade_edit_tree_column_weight extends grade_edit_tree_column {
 
     public function get_item_cell($item, $params) {
         if (empty($params['element'])) {
-            throw new Exception('Array key (element) missing from 2nd param of grade_edit_tree_column_weightorextracredit::get_item_cell($item, $params)');
+            throw new Exception('Array key (element) missing from 2nd param of grade_edit_tree_column_weight::get_item_cell($item, $params)');
         }
         $itemcell = clone($this->itemcell);
         $itemcell->text = '&nbsp;';
@@ -869,10 +869,9 @@ class grade_edit_tree_column_range extends grade_edit_tree_column {
         // If the parent aggregation is Sum of Grades, we should show the number, even for scales, as that value is used...
         // ...in the computation. For text grades, the grademax is not used, so we can still show the no value string.
         $parent_cat = $item->get_parent_category();
-        if ($item->gradetype == GRADE_TYPE_TEXT) {
-            $grademax = ' - ';
-        } else if ($parent_cat->aggregation == GRADE_AGGREGATE_SUM) {
-            $grademax = format_float($item->grademax, $item->get_decimals());
+
+        if ($params['itemtype'] === 'course' || $params['itemtype'] === 'category') {
+            $grademax = (isset($item->max_earnable)) ? format_float($item->max_earnable, $item->get_decimals()) : format_float($item->grademax, $item->get_decimals());
         } elseif ($item->gradetype == GRADE_TYPE_SCALE) {
             $scale = $DB->get_record('scale', array('id' => $item->scaleid));
             $scale_items = null;
