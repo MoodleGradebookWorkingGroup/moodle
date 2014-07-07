@@ -1129,6 +1129,10 @@ class grade_structure {
 
     public $courseid;
 
+    public $cats;    //TODO: phpdoc
+
+    public $parents;  //TODO: phpdoc
+
     /**
     * Reference to modinfo for current course (for performance, to save
     * retrieving it from courseid every time). Not actually set except for
@@ -1677,6 +1681,58 @@ class grade_structure {
 
         return '';
     }
+
+    public function fill_cats() {
+        foreach ($this->items as $key=>$item) {
+            if (!$item->categoryid) {
+                $this->cats[$item->iteminstance] = $item;
+            }
+        }
+    }
+
+    //TODO: phpdoc, cleanup assignments
+    public function fill_parents($element, $idnumber, $showtotalsifcontainhidden = 0) {
+        foreach($element['children'] as $sortorder=>$child) {
+
+            switch ($child['type']) {
+                case 'courseitem':
+                case 'categoryitem':
+                    continue;
+                case 'category':
+                    $childid = $this->cats[$child['object']->id]->id;
+                    break;
+                default:
+                    $childid = substr($child['eid'],1,8);
+            }
+
+            if (!isset($this->parents[$childid])) {
+                $this->parents[$childid] = new stdClass();
+                $this->parents[$childid]->cat_item = array();
+                $this->parents[$childid]->cat_max = array();
+                $this->parents[$childid]->pctg = array();
+                $this->parents[$childid]->agg_coef = array();
+                $this->parents[$childid]->weightoverride = $this->items[$childid]->weightoverride;
+                $this->parents[$childid]->parent_id = $idnumber;
+                $this->parents[$childid]->parent_agg = $element['object']->aggregation;
+                $this->parents[$childid]->extracredit = 0;
+            }
+
+            if (!empty($child['children'])) {
+                $this->fill_parents($child, $childid, $showtotalsifcontainhidden);
+            }
+
+            if ( (!$child->['object']->is_hidden() || $showtotalsifcontainhidden == GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN)
+                    && isset($this->parents[$childid]->parent_id)
+                    && $this->items[$childid]->extracredit !== 1) {
+                if (isset($this->items[$childid]->max_earnable)) {
+                    $this->items[$idnumber]->max_earnable += $this->items[$childid]->maxearnable;
+                } else {
+                    $this->items[$idnumber]->max_earnable += $this->items[$childid]->grademax;
+                }
+            }
+        }
+    }
+
 }
 
 /**
