@@ -109,7 +109,7 @@ if (!is_null($category) && !is_null($aggregationtype) && confirm_sesskey()) {
 //first make sure we have proper final grades - we need it for locking changes
 grade_regrade_final_grades($courseid);
 
-$sumofgradesonly = sumofgradesonly($courseid);  //TODO: comes from laegrader
+$sumofgradesonly = grade_helper::get_sum_of_grades_only($courseid);  //TODO: comes from laegrader
 
 // get the grading tree object
 // note: total must be first for moving to work correctly, if you want it last moving code must be rewritten!
@@ -118,7 +118,7 @@ $gtree = null;
 if (!$sumofgradesonly) {
     $gtree = new grade_tree($courseid, false, false);
 } else {
-    $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);  //TODO: rename and move
+    $gtree = new grade_tree($courseid, false, false, null, false);  //TODO: removed current_group = 0 from args
 }
 
 $gtree->action = isset($action) ? $action : ''; //TODO: why?
@@ -350,9 +350,9 @@ echo '<input type="hidden" name="sesskey" value="'.sesskey().'" />';
 //did we update something in the db and thus invalidate $grade_edit_tree?
 if ($recreatetree) {
     unset($gtree);
-    //TODO: compensate for incorporating grade_tree_local_helper into grade_tree
     if ($sumofgradesonly) {
-        $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);
+        //TODO: compensate for incorporating grade_tree_local_helper into grade_tree: removed current_group = 0
+        $gtree = new grade_tree($courseid, false, false, null, false);
     }
     else {
         $gtree = new grade_tree($courseid, false, false);

@@ -58,21 +58,21 @@ class grade_edit_tree {
         //TODO: section needs comments
         $showtotalsifcontainhidden = grade_get_setting($COURSE->id, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
 
-        //$gtree->cats = array();
-        //$gtree->fill_cats();    //TODO: function from laegrader
-        //
-        //$gtree->parents = array();
-        //$gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass();
-        //$gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $showtotalsifcontainhidden, array());  //TODO: function from laegrader
-        //
-        //$gtree->grades = $DB->get_records_sql('SELECT id, grademax as finalgrade, grademax FROM {grade_items} WHERE courseid = ?', array($COURSE->id));
-        //
-        //$gtree->emptycats = array();
+        $gtree->cats = array();
+        $gtree->fill_cats();    //TODO: function from laegrader
+
+        $gtree->parents = array();
+        $gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass();
+        $gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $showtotalsifcontainhidden, array());  //TODO: function from laegrader
+
+        $gtree->grades = $DB->get_records_sql('SELECT id, grademax as finalgrade, grademax FROM {grade_items} WHERE courseid = ?', array($COURSE->id));
+
+        $gtree->emptycats = array();
 
         //TODO: this comes from laegrader and appears to be important.  It needs to be grafted onto lib.
         $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
 
-        $gtree->sumofgradesonly = sumofgradesonly($COURSE->id); //TODO: function from laegrader
+        $gtree->sumofgradesonly = grade_helper::get_sum_of_grades_only($COURSE->id); //TODO: function from laegrader
 
         $this->gtree = $gtree;
         $this->moving = $moving;
