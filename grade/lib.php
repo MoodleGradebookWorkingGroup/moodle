@@ -1838,7 +1838,7 @@ class grade_structure {
 
                 //check to see if weights are overridden
                 if (array_key_exists($id, $checkitems)) {
-                    if (array_key_exists($id, $this->emptycats && !$fullweight)) {
+                    if (array_key_exists($id, $this->emptycats) && !$fullweight) {
                         $grades[$id]->weight = 0;
                     } else {
                         $override_weight += $checkitems[$id]->weight;
@@ -1933,7 +1933,7 @@ class grade_structure {
             } else if ($contribution == 0) {
 
                 if (sizeof($checkids) > 0) {
-                    $totaloverridenweight = 0;
+                    $totaloverriddenweight = 0;
                     foreach ($checkids as $id) {
                         $totaloverriddenweight += $grades[$id]->weight;
                     }
