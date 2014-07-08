@@ -57,32 +57,30 @@ class grade_edit_tree {
     public function __construct($gtree, $moving=false, $gpr) {
         global $USER, $OUTPUT, $COURSE, $CFG, $DB;
 
-        $showtotalsifcontainhidden = grade_get_setting($COURSE->id, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
+        // determine if sumofgradesonly condition exists
+        $gtree->sumofgradesonly = sumofgradesonly($COURSE->id);
 
-        $gtree->cats = array();
-        $gtree->fill_cats();
+//        if ($gtree->sumofgradesonly) {
+            $gtree->emptycats = array();
+            $gtree->cats = array();
+            $gtree->fill_cats();
+
+            // Fill items with parent information needed later for laegrader report
+            $gtree->parents = array();
+            $gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass(); // initiate the course item
+            $gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $gtree->showtotalsifcontainhidden,array());
+            $sql = "SELECT id, grademax as finalgrade, grademax as rawgrademax FROM {grade_items}
+                            WHERE courseid = $COURSE->id";
+            $gtree->grades = $DB->get_records_sql($sql);
+
+            $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
+//        }
         
-        // Fill items with parent information needed later for laegrader report
-       	$gtree->parents = array();
-        $gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass(); // initiate the course item
-       	$gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $showtotalsifcontainhidden,array());
-        $sql = "SELECT id, grademax as finalgrade, grademax FROM {grade_items}
-                        WHERE courseid = $COURSE->id";
-        $gtree->grades = $DB->get_records_sql($sql);
-        $gtree->emptycats = array();
-
-        foreach($gtree->items as $item) {
-        	$cat = $item->get_item_category(); // need category settings like drop-low or keep-high
-        }
-
-        $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
-
         $this->gtree = $gtree;
         $this->moving = $moving;
         $this->gpr = $gpr;
         $this->deepest_level = $this->get_deepest_level($this->gtree->top_element);
 
-        $gtree->sumofgradesonly = sumofgradesonly($COURSE->id);
         if (!$gtree->sumofgradesonly || $gtree->sumofgradesonly == 'optional') {
             $this->columns = array(grade_edit_tree_column::factory('name', array('deepest_level' => $this->deepest_level)),
                     grade_edit_tree_column::factory('aggregation', array('flag' => true)));
@@ -758,7 +756,6 @@ class grade_edit_tree_column_weight extends grade_edit_tree_column {
         $headercell = clone($this->headercell);
         if ($gtree->sumofgradesonly) {
             $label = get_string('reset');
-    //        $optionsreset = array('sesskey'=>sesskey(), 'id'=>$COURSE->id, 'action'=>'reset', 'tooltip' => 'Reset weights to default');
             $optionsreset = array('sesskey'=>sesskey(), 'id'=>$COURSE->id, 'action'=>'reset');
             $url = new moodle_url('index.php', $optionsreset);
             $headercell->text = get_string('weightuc', 'grades') . $OUTPUT->help_icon('aggregationcoefweight', 'grades')
@@ -789,7 +786,7 @@ class grade_edit_tree_column_weight extends grade_edit_tree_column {
                 $categorycell->text = format_float($params['gtree']->grades[$item->id]->weight, 3) . '%';
             }
             if ($item->weightoverride > 0) {
-                $categorycell->text .= '<br />Overridden';
+                $categorycell->text .= '<br />'.  get_string('adjusted', 'grades');
             }
         }
         return $categorycell;
@@ -817,7 +814,7 @@ class grade_edit_tree_column_weight extends grade_edit_tree_column {
                     $itemcell->text = format_float($params['gtree']->grades[$item->id]->weight, 3) . '%';
             }
             if ($item->weightoverride > 0) {
-                $itemcell->text .= '<br />Overridden';
+                $itemcell->text .= '<br />'.  get_string('adjusted', 'grades');
 //            	$itemcell->style .= ' background-color: #F3E4C0 ';
 	        }
         }

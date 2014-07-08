@@ -108,21 +108,21 @@ if (!is_null($category) && !is_null($aggregationtype) && confirm_sesskey()) {
     grade_category::set_properties($grade_category, $data);
     $grade_category->update();
 
-    grade_regrade_final_grades($courseid);
+//    grade_regrade_final_grades($courseid);
 }
 
 //first make sure we have proper final grades - we need it for locking changes
- grade_regrade_final_grades($courseid);
+// grade_regrade_final_grades($courseid);
 
 $sumofgradesonly = sumofgradesonly($courseid);
 // get the grading tree object
 // note: total must be first for moving to work correctly, if you want it last moving code must be rewritten!
-if (!$sumofgradesonly) {
+//if (!$sumofgradesonly) {
     grade_regrade_final_grades($courseid);
     $gtree = new grade_tree($courseid, false, false);
-} else {
-    $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);
-}
+//} else {
+//    $gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);
+//}
 
 $gtree->action = isset($action) ? $action : '';
 
@@ -154,13 +154,7 @@ if ($action == 'moveselect') {
     }
 }
 
-// disagg hack
-// if ($sumofgradesonly) {
-//	$grade_edit_tree = new grade_edit_tree_local($gtree, $movingeid, $gpr);
-// disagg hack end
-//} else {
-	$grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
-//}
+$grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
 
 switch ($action) {
     case 'delete':
@@ -245,7 +239,7 @@ if ($current_view != '') {
 //Ideally we could do the updates through $grade_edit_tree to avoid recreating it
 $recreatetree = false;
 
-if ($action == 'reset') {
+if ($action === 'reset') {
     	$records = $DB->get_records('grade_items', array('courseid' => $courseid, 'weightoverride' => 1));
     	foreach ($records as $record) {
     		$record->weight = 0;
@@ -369,23 +363,11 @@ echo '<div>';
 echo '<input type="hidden" name="sesskey" value="'.sesskey().'" />';
 
 //did we update something in the db and thus invalidate $grade_edit_tree?
-//did we update something in the db and thus invalidate $grade_edit_tree?
 if ($recreatetree) {
-	// disagg hack
-	unset($gtree);
-	if ($sumofgradesonly) {
-		$gtree = grade_tree_local_helper($courseid, false, false, null, false, 0);
-	} else {
-		$gtree = new grade_tree($courseid, false, false);
-	}
-	$gtree->action = isset($action) ? $action : '';
-//	if ($sumofgradesonly) {
-//		$grade_edit_tree = new grade_edit_tree_local($gtree, $movingeid, $gpr);
-	// disagg hack end
-//	} else {
-		$grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
-//	}
-	// disagg hack end
+    unset($gtree);
+    $gtree = new grade_tree($courseid, false, false);
+    $gtree->action = isset($action) ? $action : '';
+    $grade_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
 }
 
 echo html_writer::table($grade_edit_tree->table);

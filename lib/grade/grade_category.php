@@ -458,9 +458,6 @@ class grade_category extends grade_object {
             $items = $DB->get_records_sql($sql, $params);
         }
 
-        // needed mostly for SUM agg type
-        $this->auto_update_max($items);
-
         $grade_inst = new grade_grade();
         $fields = 'g.'.implode(',g.', $grade_inst->required_fields);
 
@@ -484,6 +481,23 @@ class grade_category extends grade_object {
         // group the results by userid and aggregate the grades for this user
         $rs = $DB->get_recordset_sql($sql, $params);
         if ($rs->valid()) {
+
+            if ($userid == null) {
+                $grade_values = null;
+            } else {
+                // must send grades to auto_update_max in order for ungraded items to be excluded
+                $sql = "SELECT itemid, finalgrade
+                          FROM {grade_grades} g, {grade_items} gi
+                         WHERE gi.id = g.itemid AND gi.id $usql $usersql
+                      ORDER BY g.userid";
+
+                // group the results by userid and aggregate the grades for this user
+                $grade_values = $DB->get_records_sql($sql, $params);
+            }
+
+            // needed mostly for SUM agg type
+            $this->auto_update_max($items, $grade_values);
+
             $prevuser = 0;
             $grade_values = array();
             $excluded     = array();
@@ -768,7 +782,7 @@ class grade_category extends grade_object {
      *
      * @param array $items sub items
      */
-    private function auto_update_max($items) {
+    private function auto_update_max($items, $grades=null) {
         global $CFG;
         if ($this->aggregation != GRADE_AGGREGATE_SUM) {
             // not needed at all
@@ -776,6 +790,7 @@ class grade_category extends grade_object {
         }
 
         $showtotalsifcontainhidden = grade_get_setting($this->courseid, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
+
         if (!$items) {
 
             if ($this->grade_item->grademax != 0 or $this->grade_item->gradetype != GRADE_TYPE_VALUE) {
@@ -801,6 +816,12 @@ class grade_category extends grade_object {
                 continue;
             }
             
+            if ($grades !== null 
+                    && $this->aggregateonlygraded 
+                    && (!isset($grades[$item->id]) || $grades[$item->id] == null)) {
+                continue;
+            }
+
             if ($item->extracredit == 1) {
                 continue;
             }
@@ -847,6 +868,8 @@ class grade_category extends grade_object {
 
             } else if (in_array($itemid, $excluded)) {
                 unset($grade_values[$itemid]);
+            } else if ($this->aggregateonlygraded && $v == null) { // allow for exclude empty grades for Sum
+                unset($grade_values[$itemid]);                
             }
         }
 
@@ -859,6 +882,13 @@ class grade_category extends grade_object {
                     $grade_values[$itemid] = 0;
                 }
             }
+        } else if ($this->aggregateonlygraded) {
+            foreach ($items as $itemid=>$value) {
+                if (!isset($grade_values[$itemid]) and !in_array($itemid, $excluded)) {
+                    $grade_values[$itemid] = 0;
+                }
+            }
+            
         }
 
         $this->apply_limit_rules($grade_values, $items);

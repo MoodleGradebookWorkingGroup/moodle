@@ -1445,3 +1445,25 @@ function grade_floats_different($f1, $f2) {
 function grade_floats_equal($f1, $f2) {
     return (grade_floatval($f1) === grade_floatval($f2));
 }
+
+function sumofgradesonly($courseid) {
+    global $CFG, $DB;
+    require_once "$CFG->dirroot/lib/grade/constants.php";
+    require_once "$CFG->dirroot/lib/grade/grade_category.php";
+    require_once "$CFG->dirroot/lib/gradelib.php";
+    if ($CFG->grade_sumofgradesonly == FORCE_SUM_OF_GRADES) {
+        return 'force';
+    } else if ($CFG->grade_sumofgradesonly == OPTIONAL_SUM_OF_GRADES) {
+        // iterate through all categories to see if they're all Sum of grades
+        $cats = $DB->get_records('grade_categories', array('courseid' => $courseid));
+        foreach ($cats as $cat) {
+            if ($cat->aggregation != GRADE_AGGREGATE_SUM) {
+                return false;
+            }
+        }
+        return 'optional';
+    } else {
+        return false;
+    }
+}
+
