@@ -66,7 +66,8 @@ class grade_edit_tree {
             $gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass();
             $gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $gtree->showtotalsifcontainhidden, array());
 
-            $gtree->grades = $DB->get_records_sql('SELECT id, grademax as finalgrade, grademax FROM {grade_items} WHERE courseid = ?', array($COURSE->id));
+            //TODO: we should probably epxlain why this is renaming to a column that already exists
+            $gtree->grades = $DB->get_records_sql('SELECT id, grademax as finalgrade, grademax as rawgrademax FROM {grade_items} WHERE courseid = ?', array($COURSE->id));
 
             $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
         }

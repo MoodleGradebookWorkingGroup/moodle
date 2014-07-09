@@ -458,9 +458,6 @@ class grade_category extends grade_object {
             $items = $DB->get_records_sql($sql, $params);
         }
 
-        // needed mostly for SUM agg type
-        $this->auto_update_max($items);
-
         $grade_inst = new grade_grade();
         $fields = 'g.'.implode(',g.', $grade_inst->required_fields);
 
