@@ -1780,7 +1780,7 @@ class grade_structure {
                     if (!isset($grades[$element['object']->grade_item->id])) {
                         $grades[$element['object']->grade_item->id] = new stdClass();
                     }
-                        $grades[$element['object']->grade_item->id]->weight = 100;
+                    $grades[$element['object']->grade_item->id]->weight = 100;
                 }
                 break;
         }
