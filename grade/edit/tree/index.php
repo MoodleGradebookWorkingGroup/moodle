@@ -103,23 +103,17 @@ if (!is_null($category) && !is_null($aggregationtype) && confirm_sesskey()) {
     grade_category::set_properties($grade_category, $data);
     $grade_category->update();
 
-    grade_regrade_final_grades($courseid);
 }
 
 //first make sure we have proper final grades - we need it for locking changes
-grade_regrade_final_grades($courseid);
-
 $sumofgradesonly = grade_helper::get_sum_of_grades_only($courseid);  //TODO: comes from laegrader
 
 // get the grading tree object
 // note: total must be first for moving to work correctly, if you want it last moving code must be rewritten!
 $gtree = null;
 
-if (!$sumofgradesonly) {
-    $gtree = new grade_tree($courseid, false, false);
-} else {
-    $gtree = new grade_tree($courseid, false, false, null, false);  //TODO: removed current_group = 0 from args
-}
+grade_regrade_final_grades($courseid);
+$gtree = new grade_tree($courseid, false, false);
 
 $gtree->action = isset($action) ? $action : ''; //TODO: why?
 
@@ -236,6 +230,7 @@ if ($current_view != '') {
 //Ideally we could do the updates through $grade_edit_tree to avoid recreating it
 $recreatetree = false;
 
+//TODO: in 2.6 there's a chunk of code that looks like "action === reset" but I'm pretty sure it's dead code - someone should check that.
 if ($data = data_submitted() and confirm_sesskey()) {
     // Perform bulk actions first
     if (!empty($data->bulkmove)) {
@@ -347,19 +342,10 @@ echo '<form id="gradetreeform" method="post" action="'.$returnurl.'">';
 echo '<div>';
 echo '<input type="hidden" name="sesskey" value="'.sesskey().'" />';
 
-//did we update something in the db and thus invalidate $grade_edit_tree?
 if ($recreatetree) {
     unset($gtree);
-    if ($sumofgradesonly) {
-        //TODO: compensate for incorporating grade_tree_local_helper into grade_tree: removed current_group = 0
-        $gtree = new grade_tree($courseid, false, false, null, false);
-    }
-    else {
-        $gtree = new grade_tree($courseid, false, false);
-    }
-
+    $gtree = new grade_tree($courseid, false, false);
     $gtree->action = isset($action) ? $action : '';
-
     $gtree_edit_tree = new grade_edit_tree($gtree, $movingeid, $gpr);
 }
 

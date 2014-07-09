@@ -2280,6 +2280,7 @@ class grade_tree extends grade_structure {
         $this->courseid   = $courseid;
         $this->levels     = array();
         $this->context    = context_course::instance($courseid);
+        $this->showtotalsifcontainhidden = array($this->courseid => grade_get_setting($this->courseid, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden));
 
         if (!empty($COURSE->id) && $COURSE->id == $this->courseid) {
             $course = $COURSE;

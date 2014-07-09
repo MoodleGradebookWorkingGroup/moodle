@@ -55,24 +55,21 @@ class grade_edit_tree {
     public function __construct($gtree, $moving=false, $gpr) {
         global $USER, $OUTPUT, $COURSE, $CFG, $DB;
 
-        //TODO: section needs comments
-        $showtotalsifcontainhidden = grade_get_setting($COURSE->id, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
+        $gtree->sumofgradesonly = grade_helper::get_sum_of_grades_only($COURSE->id);
 
-        $gtree->cats = array();
-        $gtree->fill_cats();    //TODO: function from laegrader
+        if ($gtree->sumofgradesonly) {
+            $gtree->emptycats = array();
+            $gtree->cats = array();
+            $gtree->fill_cats();
 
-        $gtree->parents = array();
-        $gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass();
-        $gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $showtotalsifcontainhidden, array());  //TODO: function from laegrader
+            $gtree->parents = array();
+            $gtree->parents[$gtree->top_element['object']->grade_item->id] = new stdClass();
+            $gtree->fill_parents($gtree->top_element, $gtree->top_element['object']->grade_item->id, $showtotalsifcontainhidden, array());
 
-        $gtree->grades = $DB->get_records_sql('SELECT id, grademax as finalgrade, grademax FROM {grade_items} WHERE courseid = ?', array($COURSE->id));
+            $gtree->grades = $DB->get_records_sql('SELECT id, grademax as finalgrade, grademax FROM {grade_items} WHERE courseid = ?', array($COURSE->id));
 
-        $gtree->emptycats = array();
-
-        //TODO: this comes from laegrader and appears to be important.  It needs to be grafted onto lib.
-        $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
-
-        $gtree->sumofgradesonly = grade_helper::get_sum_of_grades_only($COURSE->id); //TODO: function from laegrader
+            $gtree->calc_weights_recursive2($gtree->top_element, $gtree->grades, false, true);
+        }
 
         $this->gtree = $gtree;
         $this->moving = $moving;
@@ -798,8 +795,7 @@ class grade_edit_tree_column_weight extends grade_edit_tree_column {
             }
 
             if ($item->weightoverride > 0) {
-                //TODO: This needs to be a Moodle string
-                $categorycell->text .= '<br/>Overridden';
+                $categorycell->text .= '<br/>' . get_string('adjusted', 'grades');
             }
         }
 
@@ -830,8 +826,7 @@ class grade_edit_tree_column_weight extends grade_edit_tree_column {
                 $itemcell->text = format_float($gtree_item->weight, 3) . '%';
             }
             if ($item->weightoverride > 0) {
-                //TODO: This needs to be a Moodle string
-                $itemcell->text .= '<br />Overridden';
+                $itemcell->text .= '<br />' . get_string('adjusted', 'grades');
           }
         }
 

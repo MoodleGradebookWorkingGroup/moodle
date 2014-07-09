@@ -484,6 +484,25 @@ class grade_category extends grade_object {
         // group the results by userid and aggregate the grades for this user
         $rs = $DB->get_recordset_sql($sql, $params);
         if ($rs->valid()) {
+
+            if ($userid == null) {
+                //TODO: why this equality check
+                $grade_values = null;
+            } else {
+                //TODO: this is really confusing
+                // must send grades to auto_update_max in order for ungraded items to be excluded
+                $sql = "SELECT itemid, finalgrade
+                            FROM {grade_grades} g, {grade_items} gi
+                            WHERE gi.id = g.itemid AND gi.id $usql $usersql
+                            ORDER BY g.userid";
+
+                // group the results by userid and aggregate the grades for this user
+                $grade_values = $DB->get_records_sql($sql, $params);
+            }
+
+            // needed mostly for SUM agg type
+            $this->auto_update_max($items, $grade_values);
+
             $prevuser = 0;
             $grade_values = array();
             $excluded     = array();
@@ -581,6 +600,9 @@ class grade_category extends grade_object {
             } else if (in_array($itemid, $excluded)) {
                 unset($grade_values[$itemid]);
                 continue;
+            } else if ($this->aggregatonlygraded && $v == null) {
+                // allow for exclude empty grades for Sum
+                unset($grade_values[$itemid]);
             }
             $grade_values[$itemid] = grade_grade::standardise_score($v, $items[$itemid]->grademin, $items[$itemid]->grademax, 0, 1);
         }
@@ -768,7 +790,7 @@ class grade_category extends grade_object {
      *
      * @param array $items sub items
      */
-    private function auto_update_max($items) {
+    private function auto_update_max($items, $grades=null) {
         global $CFG;
 
         if ($this->aggregation != GRADE_AGGREGATE_SUM) {
@@ -777,6 +799,7 @@ class grade_category extends grade_object {
         }
 
         $showtotalsifcontainhidden = grade_get_setting($this->courseid, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden);
+
         if (!$items) {
 
             if ($this->grade_item->grademax != 0 or $this->grade_item->gradetype != GRADE_TYPE_VALUE) {
@@ -792,6 +815,12 @@ class grade_category extends grade_object {
         $maxes = array();
 
         foreach ($items as $item) {
+
+            if ($grades !== null
+                    && $this->aggregateonlygraded
+                    && (!isset($grades[$item->id]) || $grades[$item->id] == null)) {
+                continue;
+            }
 
             if ($item->extracredit == 1) {
                 // extra credit from this activity - does not affect total
@@ -854,6 +883,12 @@ class grade_category extends grade_object {
             foreach ($items as $itemid=>$value) {
 
                 if (!isset($grade_values[$itemid]) and !in_array($itemid, $excluded)) {
+                    $grade_values[$itemid] = 0;
+                }
+            }
+        } else if ($this->aggregateonlygraded) {
+            foreach ($items as $itemid=>$value) {
+                if (!isset($grade_values[$itemid]) and !in_array($itemid, $exclude)) {
                     $grade_values[$itemid] = 0;
                 }
             }
