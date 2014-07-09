@@ -1743,6 +1743,8 @@ class grade_structure {
                 $this->fill_parents($child, $childid, $showtotalsifcontainhidden);
             }
 
+            // accumulate max scores for the parent
+            // this is necessary for categories and items since we don't have grades to attach max values to
             if ( (!$child['object']->is_hidden() || $showtotalsifcontainhidden == GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN)
                     && isset($this->parents[$childid]->parent_id)
                     && $this->items[$childid]->extracredit !== 1) {
@@ -1775,14 +1777,17 @@ class grade_structure {
             default:
                 $elementid = $element['object']->grade_item->id;
                 if ($element['object']->grade_item->itemtype == 'course') {
-                    $grades[$element['object']->grade_item->id]->weight = 100;
+                    if (!isset($grades[$element['object']->grade_item->id])) {
+                        $grades[$element['object']->grade_item->id] = new stdClass();
+                    }
+                        $grades[$element['object']->grade_item->id]->weight = 100;
                 }
                 break;
         }
 
         if ($fullweight) {
             $grades[$elementid]->grade_item = new stdClass();
-            $grades[$elementid]->grade_item->grademax = $grades[$elementid]->grademax;
+            $grades[$elementid]->grade_item->grademax = $grades[$elementid]->rawgrademax;
         }
 
         $container_weight = $grades[$elementid]->grade_item->grademax;
@@ -1798,6 +1803,7 @@ class grade_structure {
                 $this->items[$elementid]->max_earnable = 0;
             }
 
+            // Recurse through all child elements
             foreach($element['children'] as $key=>$child) {
                 if ($child['type'] === 'categoryitem' || $child['type'] === 'courseitem') {
                     continue;   //do not process categoryitems or courseitems
@@ -1860,7 +1866,7 @@ class grade_structure {
 
                 if ($fullweight) {
                     $grades[$id]->grade_item = new stdClass();
-                    $grades[$id]->grade_item->grademax = $grades[$id]->grademax;
+                    $grades[$id]->grade_item->grademax = $grades[$id]->rawgrademax;
                 }
 
                 // Check to see if this is a category with no visible children
@@ -1887,6 +1893,7 @@ class grade_structure {
                     }
                     if (!$exitval) {
                         $this->emptycats[$id] = 'empty';
+                        continue;
                     }
                 }// end if handling category
 
