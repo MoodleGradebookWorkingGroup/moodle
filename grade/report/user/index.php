@@ -81,10 +81,7 @@ $USER->grade_last_report[$course->id] = 'user';
 
 
 //first make sure we have proper final grades - this must be done before constructing of the grade tree
-$sumofgradesonly = sumofgradesonly($courseid);
-if (!$sumofgradesonly) {
-    grade_regrade_final_grades($courseid);
-}
+grade_regrade_final_grades($courseid);
 
 if (has_capability('moodle/grade:viewall', $context)) { //Teachers will see all student reports
     $groupmode    = groups_get_course_groupmode($course);   // Groups are being used

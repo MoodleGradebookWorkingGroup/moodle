@@ -24,8 +24,6 @@
 
 require_once($CFG->dirroot . '/grade/report/lib.php');
 require_once($CFG->libdir.'/tablelib.php');
-require_once $CFG->dirroot.'/grade/report/laegrader/locallib.php';
-require_once($CFG->libdir.'/gradelib.php');
 
 /**
  * Class providing an API for the grader report building and displaying.
@@ -110,10 +108,6 @@ class grade_report_grader extends grade_report {
         parent::__construct($courseid, $gpr, $context, $page);
 
         $this->canviewhidden = has_capability('moodle/grade:viewhidden', context_course::instance($this->course->id));
-        
-        // included so totals displayed in Grader match User
-        $this->showtotalsifcontainhidden = array($this->courseid => grade_get_setting($this->courseid, 'report_user_showtotalsifcontainhidden', $CFG->grade_report_user_showtotalsifcontainhidden));
-        $showtotalsifcontainhidden = $this->showtotalsifcontainhidden[$this->courseid];
 
         // load collapsed settings for this report
         if ($collapsed = get_user_preferences('grade_report_grader_collapsed_categories')) {
@@ -134,8 +128,7 @@ class grade_report_grader extends grade_report {
             $switch = grade_get_setting($this->courseid, 'aggregationposition', $CFG->grade_aggregationposition);
         }
 
-        $sumofgradesonly = sumofgradesonly($courseid);
-
+        // Grab the grade_tree for this course
         $this->gtree = new grade_tree($this->courseid, true, $switch, $this->collapsed, $nooutcomes);
 
         $this->sortitemid = $sortitemid;
