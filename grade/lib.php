@@ -2707,6 +2707,477 @@ class grade_tree extends grade_structure {
             return false;
         }
     }
+    
+    /*
+     * Recursive function for filling gtree-parents array keyed on item-id with elements id=itemid of parent, agg=aggtype of item
+     * accumulates $items->max_earnable with either the child's max_earnable or (in the case of a non-category) grademx
+     * @param array &$parents - what is being built in order to allow accurate accumulation of child elements' grademaxes (and earned grades) into the container element (category or course)
+     * @param array &$items - the array of grade item objects
+     * @param array $cats - array of category information used to get the actualy itemid for the child category cuz its not otherwise in item object
+     * @param object $element - level element which allows a top down approach to a bottom up procedure (i.e., find the children and store their accumulated values to the parents)
+     * @param boolean $accuratetotals - if user wants to see accurate point totals for their gradebook
+     * @param boolean $alltotals -- this is passed by the user report because max_earnable can only be figured on graded items
+     */
+    function fill_parents($element, $idnumber, $showtotalsifcontainhidden = 0) {
+        foreach($element['children'] as $sortorder=>$child) {
+            // skip items that are only for another group than the one being considered
+/*            if (array_key_exists($child['object']->id, $this->modx)) {
+                continue;
+            }
+*/
+            switch ($child['type']) {
+                case 'courseitem':
+                case 'categoryitem':
+                    continue 2;
+                case 'category':
+                    $childid = $this->cats[$child['object']->id]->id;
+                    break;
+                default:
+                    $childid = substr($child['eid'],1,8);
+            }
+            if (!isset($this->parents[$childid])) {
+                $this->parents[$childid] = new stdClass();
+                $this->parents[$childid]->cat_item = array();
+                $this->parents[$childid]->cat_max = array();
+                $this->parents[$childid]->pctg = array();
+                $this->parents[$childid]->agg_coef = array();
+                $this->parents[$childid]->weightoverride = $this->items[$childid]->weightoverride;
+                $this->parents[$childid]->parent_id = $idnumber;
+                $this->parents[$childid]->parent_agg = $element['object']->aggregation;
+                $this->parents[$childid]->extracredit = 0;
+            }
+            if (! empty($child['children'])) {
+                $this->fill_parents($child, $childid, $showtotalsifcontainhidden);
+            }
+
+
+            // accumulate max scores for parent
+            // this is needed for cats and items since we don't have grades to attach max values to
+    //        if ($accuratetotals && $alltotals) {
+            // this line needs to determine whether to include hidden items
+            if ((!$child['object']->is_hidden() || $showtotalsifcontainhidden == GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN) // either its not hidden or the hiding setting allows it to be calculated into the total
+                    && isset($this->parents[$childid]->parent_id) // the parent of this item needs to be set
+                    && $this->items[$childid]->extracredit !== 1) {
+//                    && ((isset($this->items[$childid]->aggregationcoef) && $this->items[$childid]->aggregationcoef != 1) // isn't an extra credit item -- has a weight and the weight isn't 1
+//                    || (isset($this->parents[$childid]->parent_agg) && $this->parents[$childid]->parent_agg == GRADE_AGGREGATE_WEIGHTED_MEAN))) { // or has a weight but in a category using WM
+                $this->items[$idnumber]->max_earnable += (isset($this->items[$childid]->max_earnable)) ? $this->items[$childid]->max_earnable : $this->items[$childid]->grademax;
+            }
+        }
+        return;
+    }
+
+    /*
+     * LAE need in order to get hold of the category name for the categoryitem structure without using the upper level category which we don't use
+    */
+    function fill_cats() {
+        foreach($this->items as $key=>$item) {
+            if (!$item->categoryid) {
+                $this->cats[$item->iteminstance] = $item;
+            }
+        }
+    }
+
+    /*
+     *
+     */
+    function calc_weights_recursive2(&$element, &$grades, $unset, $fullweight = null) {
+        global $DB;
+        // determine any overridden weights
+        $sql = "SELECT id, weight, weightoverride
+                FROM {grade_items}
+                WHERE courseid = $this->courseid
+                AND weightoverride != 0";
+        $checkitems = $DB->get_records_sql($sql);
+
+        switch ($element['type']) {
+            case 'grade_item':
+            case 'item':
+                $elementid = $element['object']->id;
+                break;
+            case 'categoryitem':
+            case 'courseitem':
+                return;
+            default:
+                $elementid = $element['object']->grade_item->id;
+                if ($element['object']->grade_item->itemtype == 'course') {
+                    if (!isset($grades[$element['object']->grade_item->id])) {
+                        $grades[$element['object']->grade_item->id] = new stdClass();
+                    }
+                    $grades[$element['object']->grade_item->id]->weight = 100;
+                }
+                break;
+        }
+        if ($fullweight) {
+            $grades[$elementid]->grade_item = new stdClass;
+            $grades[$elementid]->grade_item->grademax = $grades[$elementid]->rawgrademax;
+        }
+
+        $container_weight = $grades[$elementid]->grade_item->grademax; // because Colin's work has already substituted correct values
+//        $container_weight = $this->items[$elementid]->rawgrademax;
+        // build the weight for category or course, we don't go any further if not a container
+        if (isset($element['children'])) {
+            $contribution = 0; // what's already been marked, if from cats and items - everything
+            $missing_weight = 0; // what's not been marked, meaningless from cats and items
+            $override_weight = 0; //
+            $checkids = array();
+            $extracredit = 0;
+            if (!isset($this->items[$elementid]->max_earnable)) {
+                $this->items[$elementid]->max_earnable = 0;
+            }
+
+        	/// Recursively iterate through all child elements
+            foreach ($element['children'] as $key => $child) {
+                if ($child['type'] === 'categoryitem' || $child['type'] === 'courseitem') {
+                    continue; // do nothing with these types of elements
+                }
+            	if ($child['object'] instanceof grade_category) {
+                    $child['object']->load_grade_item();
+                    $id = $child['object']->grade_item->id;
+                } else {
+                    $id = $child['object']->id;
+                }
+
+                // check to see if this is a category with no visible children and if so, should we ignore it
+                $exitval = false;
+                if ($child['type'] === 'category' && ($fullweight || $this->showtotalsifcontainhidden !== GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN)) {
+                    foreach ($child['children'] as $key => $grandchild) {
+                        if ($grandchild['type'] !== 'categoryitem'
+                                && !$grandchild['object']->is_hidden()
+                                && $grades[$grandchild['object']->id]->finalgrade != 0
+                                &&(!isset($grades[$grandchild['object']->id]->weight)
+                                        || $grades[$grandchild['object']->id]->weight != -1)) {
+                            $exitval = true;
+                            break;
+                        }
+                    }
+                    if (!$exitval) {
+                        $this->emptycats[$id] = 'empty';
+                    }
+                }
+
+                // check to see if weights are overridden
+                if (array_key_exists($id, $checkitems)) {
+                    if (array_key_exists($id, $this->emptycats) && !$fullweight) {
+                        $grades[$id]->weight = 0;
+                    } else {
+                        $override_weight += $checkitems[$id]->weight;
+                        $grades[$id]->weight = $checkitems[$id]->weight;
+                        $checkids[] = $id;
+                    }
+            	}
+            }
+
+            // determine how much non-normalized weight we already have in the category and how much might be missing (in case we have a target grade condition)
+            // also determine the relative contibution so far
+            foreach ($element['children'] as $order => $child) {
+                if ($child['object'] instanceof grade_category) {
+                    $id = $child['object']->grade_item->id;
+                } else {
+                    $id = $child['object']->id;
+                }
+
+                if ($fullweight) {
+                    $grades[$id]->grade_item = new stdClass;
+                    $grades[$id]->grade_item->grademax = $grades[$id]->rawgrademax;
+                }
+                // check to see if this is a category with no visible children
+                $exitval = false;
+                if ($child['type'] === 'category' && ($fullweight || $this->showtotalsifcontainhidden !== GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN)) {
+                    foreach ($child['children'] as $key => $grandchild) {
+                        if ($grandchild['type'] !== 'categoryitem' && !$grandchild['object']->is_hidden() && $grades[$grandchild['object']->id]->finalgrade != 0 &&(!isset($grades[$grandchild['object']->id]->weight) || $grades[$grandchild['object']->id]->weight != -1)) {
+                            $exitval = true;
+                            break;
+                        }
+                    }
+                    if (!$exitval) {
+                        $this->emptycats[$id] = 'empty';
+                        continue; // if all are hidden then don't count this into calculations
+                    }
+                }
+
+                if ($child['type'] === 'categoryitem' || $child['type'] === 'courseitem') {
+                    continue; // do nothing with these types of elements
+                } else if ($this->items[$id]->is_hidden()) { // either its not hidden or the hiding setting allows it to be calculated into the total
+                    continue;
+                } else if ($this->items[$id]->is_hidden() && ($fullweight || $this->showtotalsifcontainhidden !== GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN)) { // either its not hidden or the hiding setting allows it to be calculated into the total
+                    continue;
+                } else if (isset($grades[$id]->weight) && $grades[$id]->weight == -1) { // has been dropped or not kept
+                    continue;
+                } else if (array_key_exists($id, $checkitems)) {
+                    continue; // already dealt with
+                } else if (array_key_exists($id, $this->emptycats)) {
+                    continue; // already dealt with
+//                } else if ($this->items[$id]->extracredit == 1 && !$fullweight) { // extra credit is removed from the calculation making up the container's weight
+                } else if ($this->items[$id]->extracredit == 1) { // extra credit is removed from the calculation making up the container's weight
+                    $grades[$elementid]->extracredit[$id] = $grades[$id]->finalgrade / $grades[$id]->grade_item->grademax; // need to supply the container with the percentage for the item
+                } else if ($fullweight) { // meaning we're coming from cats and items
+                    $contribution += $grades[$id]->grade_item->grademax;
+                } else if (!isset($grades[$id]->finalgrade)) {
+                    $missing_weight += $grades[$id]->grade_item->grademax;
+                    $this->emptygrades[$id] = $this->items[$id];
+                } else { // has marks
+                    $contribution += $grades[$id]->grade_item->grademax;
+                }
+            }
+
+            // how much potential grades are left to be earned
+            // normalizer adjust the weights to be equal to 100
+            // weight adjuster is multiplied by the child's weight to achieve the right percentage of the container weight
+            if ($fullweight && $contribution > 0) {
+                $normalizer = (100 - $override_weight) / $contribution;
+            } else if ($contribution == 0) {
+            	if (sizeof($checkids) > 0) {
+                    $totaloverriddenweight = 0;
+                    foreach ($checkids as $id) {
+                        $totaloverriddenweight += $grades[$id]->weight;
+                    }
+                    $normalizer = 100 /  $totaloverriddenweight;
+                    foreach ($checkids as $id) {
+                        $grades[$id]->weight *= $normalizer;
+                    }
+            	} else {
+	                $normalizer = 1;
+            	}
+            } else {
+                // figure out how much to adjust weights so they are all proporitional to 100
+                $normalizer = (100 - $override_weight) / $contribution;
+            }
+
+            // go back through and apply normalizer to have weights add up to container
+            $grade_values = array();
+            foreach ($element['children'] as $order => $child) {
+                if ($child['object'] instanceof grade_category) {
+                    $id = $child['object']->grade_item->id;
+                } else {
+                    $id = $child['object']->id;
+                }
+
+                // get the id of this grade's parent
+                if ($child['type'] !== 'course' && $child['type'] !== 'courseitem') {
+                    $parent_id = $this->parents[$id]->parent_id; // the parent record contains an id field pointing to its parent, the key on the parent record is the item itself to allow lookup
+                }
+                if ($child['type'] === 'categoryitem' || $child['type'] === 'courseitem') {
+                    continue; // do nothing with these types of elements
+                } else if (array_key_exists($id, $this->emptycats)) { // has to be above checkitems
+                    continue;
+                } else if (array_key_exists($id, $checkitems)) {
+                } else if ($this->items[$id]->is_hidden() && $this->showtotalsifcontainhidden !== GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN) { // either its not hidden or the hiding setting allows it to be calculated into the total
+                    continue;
+                } else if (!isset($grades[$id]->finalgrade) && !$fullweight) { // empty grade no targets
+                    continue;
+                } else if (isset($grades[$id]->weight) && $grades[$id]->weight == -1) { // dropped
+                    continue;
+                } else {
+                    $grades[$id]->weight = $grades[$id]->grade_item->grademax * $normalizer; // TODO: fix this to use cat_max or something
+                }
+                if ($element['object']->grade_item->itemtype !== 'course') {
+                    if (isset($grades[$elementid]->weight)) {
+                    	$parent_weight = $grades[$parent_id]->weight * .01;
+                    } else {
+                    	$parent_weight = 1;
+                    }
+                    $grades[$elementid]->pctg[$id] = $grades[$id]->finalgrade / $grades[$id]->grade_item->grademax * $grades[$id]->weight; // need to supply the container with the percentage for the item
+                    $grades[$elementid]->contrib[$id] = $grades[$id]->finalgrade / $grades[$id]->grade_item->grademax * $grades[$id]->weight * $parent_weight * .01; // need to supply the container with the percentage for the item
+                }
+            }
+            if (isset($grades[$elementid]->contrib) && is_array($grades[$elementid]->contrib)) {
+    	        $this->cat = $this->items[$elementid]->get_item_category(); // need category settings like drop-low or keep-high
+                $this->limit_item($elementid, $grades, $unset);
+            }
+            foreach ($element['children'] as $order => $child) {
+                if (isset($child['children'])) {
+                    $this->calc_weights_recursive2($child, $grades, $unset, $fullweight);
+                }
+                if ($element['object']->grade_item->itemtype == 'course' && !$fullweight && !$unset) {
+                    if ($child['object'] instanceof grade_category) {
+                        $id = $child['object']->grade_item->id;
+                        if (isset($grades[$id]->contrib)) {
+                            if (is_array($grades[$id]->contrib)) {
+                                $grades[$elementid]->contrib[$id] = array_sum($grades[$id]->contrib);
+                            } else {
+                                $grades[$elementid]->contrib[$id] = $grades[$id]->finalgrade / $grades[$id]->grade_item->grademax * $grades[$id]->weight; // need to supply the container with the percentage for the item
+                            }
+                        }
+                    } else {
+                        $id = $child['object']->id;
+                        if (isset($grades[$elementid]->weight)) {
+                            $parent_weight = $grades[$elementid]->weight * .01;
+                        } else {
+                            $parent_weight = 1;
+                        }
+                        if (isset($grades[$id]->weight) && $grades[$id]->weight !== 0 && $grades[$id]->grade_item->grademax !== 0) {
+                            $grades[$elementid]->pctg[$id] = $grades[$id]->finalgrade / $grades[$id]->grade_item->grademax * $grades[$id]->weight; // need to supply the container with the percentage for the item
+                            $grades[$elementid]->contrib[$id] = $grades[$id]->finalgrade / $grades[$id]->grade_item->grademax * $grades[$id]->weight * $parent_weight * .01; // need to supply the container with the percentage for the item
+                        }
+                    }
+                    if (isset($grades[$elementid]->contrib[$elementid])) {
+                        unset($grades[$elementid]->contrib[$elementid]);
+                    }
+            	}
+            }
+
+        }
+    }
+
+    function limit_item($itemid, $grades, $unsetgrades = true) {
+        $extraused = $this->cat->is_extracredit_used();
+        if (!empty($this->cat->droplow)) {
+            asort($grades[$itemid]->contrib, SORT_NUMERIC);
+            $dropped = 0;
+            foreach ($grades[$itemid]->contrib as $childid=>$contrib) {
+                if ($dropped < $this->cat->droplow) {
+                    if (is_null($contrib)) {
+                        continue;
+                    } else if ($extraused && $this->cat->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN2 && $this->items[$childid]->aggregationcoef > 0) {
+                        // no drop low for extra credits
+                    } else {
+                        if ($unsetgrades) {
+                            unset($grades[$itemid]->pctg[$childid]);
+//                            unset($grades[$itemid]->cat_item[$childid]);
+//                            unset($grades[$itemid]->cat_max[$childid]);
+                            unset($grades[$itemid]->contrib[$childid]);
+                        	$grades[$childid]->weight = -1; // need to set the weight here because calc_weights doesn't consider drop or keep conditions
+                        	$dropped++;
+                        }
+                    }
+                } else {
+                    // we have dropped enough
+                    break;
+                }
+            }
+        } else if (!empty($this->cat->keephigh)) {
+            arsort($grades[$itemid]->contrib, SORT_NUMERIC);
+            $kept = 0;
+            foreach ($grades[$itemid]->contrib as $childid=>$contrib) {
+                if (is_null($contrib)) {
+                    continue;
+                } else if ($extraused && $this->cat->aggregation == GRADE_AGGREGATE_WEIGHTED_MEAN2 && $this->items[$childid]->aggregationcoef > 0) {
+                    // we keep all extra credits
+                } else if ($kept < $this->cat->keephigh) {
+                    $kept++;
+                } else {
+                    if ($unsetgrades) {
+                        unset($grades[$itemid]->pctg[$childid]);
+//                        unset($grades[$itemid]->cat_item[$childid]);
+//                        unset($grades[$itemid]->cat_max[$childid]);
+                        unset($grades[$itemid]->contrib[$childid]);
+                    	$grades[$childid]->weight = -1; // need to set the weight here because calc_weights doesn't consider drop or keep conditions
+                    }
+                }
+            }
+        }
+    }
+    /*
+     * Used to calculate accurate point totals
+     * Called from each report to make sure nothing has been injected from a feeder activity
+     * Not called from Setup
+     */
+    function accuratepoints (&$grades, $grademax = null) {
+        global $DB;
+        // need to get the levels containing categories and disregard the level containing only items
+        $levelsarray = array_keys($this->levels);
+
+        // now go through all the items and categories to aggregate their values into their parents
+        $curlevel = $levelsarray[max($levelsarray)];
+        
+        // load grade_catetgories, need for xreffing for aggregateonlygraded
+        foreach ($this->cats as $catid => $cat) {
+            $cat->grade_category = grade_category::fetch(array('id' => $catid));
+            $cat->value = 0;
+        }
+        
+        while ($curlevel > -1) {
+            foreach ($this->levels[$curlevel] as $element) {
+                switch ($element['type']) {
+                    case 'courseitem':
+                        break;
+                    case 'category':
+                        $item = $this->cats[$element['object']->id];
+                        // exclude ungraded, hidden, and extra credit items
+                        // exclude ungraded, hidden, and extra credit items
+                        if ($item->extracredit !== 1 && 
+                                $item->weight !== -1 &&
+                                !is_null($element['object']->parent) &&
+                                (!$item->is_hidden() || $this->showtotalsifcontainhidden == GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN) &&
+                                ($grades[$item->id]->finalgrade !== null || $this->cats[$element['object']->parent]->grade_category->aggregateonlygraded == 0)) {
+                            if (!isset($this->cats[$element['object']->parent])) {
+                                $this->cats[$element['object']->parent] = new stdClass();
+                                $this->cats[$element['object']->parent]->value = 0;
+                            }
+                            $this->cats[$element['object']->parent]->value += $this->cats[$element['object']->id]->value;
+                        }
+                        break;
+                    case 'item':
+                        $item = $element['object'];
+                        $cat = $this->cats[$item->categoryid];
+                        // exclude ungraded, hidden, and extra credit items
+                        if ($grademax !== null) {
+                            // exclude ungraded, hidden, and extra credit items
+                            if ($item->extracredit !== 1 && 
+                                    $item->weight !== -1 &&
+                                    (!$item->is_hidden() || $this->showtotalsifcontainhidden == GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN) &&
+                                    (isset($grades[$item->id]->finalgrade) || $cat->grade_category->aggregateonlygraded == 0) &&
+                                    ($grades[$item->id]->finalgrade !== null || $this->cats[$item->categoryid]->grade_category->aggregateonlygraded == 0)) {
+                                $cat->value += $grades[$item->id]->rawgrademax;
+                            }
+                        } else {
+                            if ($item->extracredit !== 1 &&
+                                    $item->weight !== -1 &&
+                                    (!$item->is_hidden() || $this->showtotalsifcontainhidden == GRADE_REPORT_SHOW_REAL_TOTAL_IF_CONTAINS_HIDDEN) &&
+                                    isset($grades[$item->id]->finalgrade) &&
+                                    ($grades[$item->id]->finalgrade !== null || $cat->grade_category->aggregateonlygraded == 0)) {
+                                $cat->value += $grades[$item->id]->finalgrade;
+                            }
+                        }
+                        break;
+                }
+            }
+            $curlevel--;
+        } 
+         
+        // store to db
+        foreach ($this->cats as $key => $cat) {
+            if ($grademax !== null) {
+                if (isset($cat->value) && $grades[$cat->id]->rawgrademax != $cat->value) {
+                    $grades[$cat->id]->rawgrademax = $cat->value;
+                    $grades[$cat->id]->update('aggregation');
+                }
+            } else {
+                if (isset($cat->value) && $grades[$cat->id]->finalgrade != $cat->value) {
+                    $grades[$cat->id]->finalgrade = $cat->value;
+                    $grades[$cat->id]->update('aggregation');
+                }
+            }
+        }
+
+    }
+
+    /**
+     * Return edit icon for give element
+     *
+     * @param array  $element An array representing an element in the grade_tree
+     * @param object $gpr A grade_plugin_return object
+     *
+     * @return string
+     */
+    public function get_weight_edit_icon() {
+        global $CFG, $OUTPUT;
+
+        if (!has_capability('moodle/grade:manage', $this->context)) {
+            return '';
+        }
+
+        $streditweight = get_string('editweight', 'gradereport_laegrader');
+
+        $object = $this->modinfo;
+        $url = new moodle_url('/grade/edit/tree/index.php',
+                array('id' => $this->courseid, 'userid' => $object->userid, 'action' => 'editweights'));
+        if ($url) {
+            return $OUTPUT->action_icon($url, new pix_icon('t/edit', $streditweight));
+        } else {
+            return '';
+        }
+    }
 }
 
 /**
